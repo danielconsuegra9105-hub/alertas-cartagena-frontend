@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZonaSOS - Mapa</title>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .coordenadas-card {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid #007bff;
+        }
+        .coordenadas-card .coords {
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .coordenadas-card button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .search-box {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 80%;
+            max-width: 400px;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 25px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .barrio-select {
+            position: absolute;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 80%;
+            max-width: 400px;
+            padding: 10px 15px;
+            font-size: 14px;
+            border: 2px solid #ccc;
+            border-radius: 25px;
+            background: white;
+        }
+        .map-container {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div class="map-container" style="position: relative;">
+        <input id="searchInput" type="text" placeholder="🔍 Buscar barrio, calle o dirección en Cartagena..." class="search-box">
+        <select id="barrioSelect" class="barrio-select">
+            <option value="">🏘️ O selecciona un barrio de Cartagena...</option>
+            <option value="10.4245,-75.5212|El Pozón, Cartagena">El Pozón</option>
+            <option value="10.3892,-75.5594|La Boquilla, Cartagena">La Boquilla</option>
+            <option value="10.4267,-75.5460|Nuevo Paraíso, Cartagena">Nuevo Paraíso</option>
+            <option value="10.4348,-75.5509|Olaya Herrera, Cartagena">Olaya Herrera</option>
+            <option value="10.4587,-75.5225|La María, Cartagena">La María</option>
+            <option value="10.4186,-75.5366|Centro Histórico, Cartagena">Centro Histórico</option>
+            <option value="10.4029,-75.5376|Manga, Cartagena">Manga</option>
+            <option value="10.4475,-75.5143|Crespo, Cartagena">Crespo</option>
+            <option value="10.3954,-75.5569|Castillogrande, Cartagena">Castillogrande</option>
+            <option value="10.4091,-75.5509|Bocagrande, Cartagena">Bocagrande</option>
+        </select>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map;
+        let marker;
+        let latitud = 10.4217;
+        let longitud = -75.5505;
+        
+        function iniciarMap() {
+            const cartagena = { lat: 10.4217, lng: -75.5505 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 13,
+                center: cartagena,
+                mapTypeId: 'roadmap'
+            });
+            
+            // CLIC EN EL MAPA
+            map.addListener('click', function(evento) {
+                latitud = evento.latLng.lat();
+                longitud = evento.latLng.lng();
+                
+                if (marker) marker.setMap(null);
+                marker = new google.maps.Marker({
+                    position: { lat: latitud, lng: longitud },
+                    map: map,
+                    animation: google.maps.Animation.DROP
+                });
+                
+                mostrarCoordenadas(latitud, longitud);
+                guardarCoordenadas(latitud, longitud);
+            });
+            
+            // LUPITA - Búsqueda
+            const input = document.getElementById('searchInput');
+            const autocomplete = new google.maps.places.Autocomplete(input, {
+                componentRestrictions: { country: 'co' },
+                fields: ['geometry', 'formatted_address', 'name']
+            });
+            
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                if (place.geometry) {
+                    latitud = place.geometry.location.lat();
+                    longitud = place.geometry.location.lng();
+                    
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(16);
+                    
+                    if (marker) marker.setMap(null);
+                    marker = new google.maps.Marker({
+                        position: { lat: latitud, lng: longitud },
+                        map: map,
+                        animation: google.maps.Animation.DROP
+                    });
+                    
+                    mostrarCoordenadas(latitud, longitud);
+                    guardarCoordenadas(latitud, longitud);
+                }
+            });
+            
+            // Selector de barrios
+            const barrioSelect = document.getElementById('barrioSelect');
+            barrioSelect.addEventListener('change', function() {
+                const valor = this.value;
+                if (!valor) return;
+                
+                const [coordenadas, nombre] = valor.split('|');
+                const [lat, lng] = coordenadas.split(',').map(Number);
+                
+                latitud = lat;
+                longitud = lng;
+                
+                map.setCenter({ lat, lng });
+                map.setZoom(16);
+                
+                if (marker) marker.setMap(null);
+                marker = new google.maps.Marker({
+                    position: { lat, lng },
+                    map: map,
+                    animation: google.maps.Animation.DROP
+                });
+                
+                mostrarCoordenadas(lat, lng);
+                guardarCoordenadas(lat, lng);
+            });
+        }
+        
+        function mostrarCoordenadas(lat, lng) {
+            let div = document.getElementById('coordenadas-card');
+            if (!div) {
+                div = document.createElement('div');
+                div.id = 'coordenadas-card';
+                div.className = 'coordenadas-card';
+                document.getElementById('map').insertAdjacentElement('afterend', div);
+            }
+            
+            div.innerHTML = `
+                <h4>📍 Ubicación seleccionada</h4>
+                <div class="coords">
+                    <strong>Latitud:</strong> ${lat}<br>
+                    <strong>Longitud:</strong> ${lng}
+                </div>
+                <button onclick="copiarCoordenadas()">📋 Copiar coordenadas</button>
+                <p style="margin-top: 10px; font-size: 12px;">Luego pégalas en el formulario de reporte</p>
+            `;
+        }
+        
+        function guardarCoordenadas(lat, lng) {
+            localStorage.setItem('latitudReporte', lat);
+            localStorage.setItem('longitudReporte', lng);
+            console.log('Coordenadas guardadas:', lat, lng);
+        }
+        
+        function copiarCoordenadas() {
+            const texto = latitud + ', ' + longitud;
+            navigator.clipboard.writeText(texto);
+            alert('✅ Coordenadas copiadas: ' + texto);
+        }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDaeWicvigtP9xPv919E-RNoxfvC-Hqik&callback=iniciarMap&libraries=places"></script>
+</body>
+</html>

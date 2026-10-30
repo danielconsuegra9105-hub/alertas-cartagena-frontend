@@ -1,0 +1,276 @@
+<!-- MAPA PRINCIPAL -->
+<div class="container mt-4">
+  <div class="card shadow border-primary">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">🗺️ Mapa de Emergencias</h4>
+    </div>
+    <div class="card-body p-0" style="height: 500px; position: relative;">
+      <app-mapa style="display: block; height: 100%; width: 100%;"></app-mapa>
+    </div>
+  </div>
+</div>
+
+<div class="container mt-4">
+  <!-- TARJETAS DE CONTEO -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card bg-danger text-white text-center shadow-sm border-0">
+        <div class="card-body">
+          <h6 class="text-uppercase small font-weight-bold">Críticos</h6>
+          <h2 class="display-4">{{ contarCriticos() }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-warning text-dark text-center shadow-sm border-0">
+        <div class="card-body">
+          <h6 class="text-uppercase small font-weight-bold">En Atención</h6>
+          <h2 class="display-4">{{ contarAtencion() }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-success text-white text-center shadow-sm border-0">
+        <div class="card-body">
+          <h6 class="text-uppercase small font-weight-bold">Resueltos</h6>
+          <h2 class="display-4">{{ contarResueltos() }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL DE BIENVENIDA Y BOTONES -->
+  <div class="jumbotron p-4 bg-light border rounded shadow-sm mb-4">
+    <h1 class="display-5">Bienvenido, {{ obtenerNombreUsuario() }}</h1>
+    <p class="lead text-muted">Panel de control de emergencias y reportes ciudadanos.</p>
+    <hr class="my-4">
+    
+    <div class="row justify-content-center">
+      <div class="col-md-6 mb-3" *ngIf="esAdmin()">
+        <button (click)="toggleFormulario()" class="btn btn-success btn-lg w-100 shadow-sm">Nuevo Usuario</button>
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <a routerLink="/comunidad" class="btn btn-outline-dark btn-lg w-100 shadow-sm d-flex align-items-center justify-content-center">
+          👁️ Ver Mapa Público
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMULARIO NUEVO USUARIO (Solo Admin) -->
+  <div class="card shadow border-success mb-5" *ngIf="verFormulario && esAdmin()">
+    <div class="card-header bg-success text-white">
+      <h4 class="mb-0">Nuevo Registro de Usuario</h4>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="registrar()">
+        <div class="mb-3">
+          <label class="form-label">Nombre Completo</label>
+          <input type="text" class="form-control" [(ngModel)]="nuevoUsuario.nombre" name="nombre" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Correo Electrónico</label>
+          <input type="email" class="form-control" [(ngModel)]="nuevoUsuario.correo" name="correo" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Teléfono</label>
+          <input type="text" class="form-control" [(ngModel)]="nuevoUsuario.telefono" name="telefono" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Contraseña</label>
+          <input type="password" class="form-control" [(ngModel)]="nuevoUsuario.password" name="password" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Rol</label>
+          <select class="form-control" [(ngModel)]="nuevoUsuario.rol" name="rol">
+            <option value="CIUDADANO">Ciudadano</option>
+            <option value="OPERADOR">Administrador</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Registrar Usuario</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SECCIÓN DE ALERTAS -->
+  <div>
+    <div class="card shadow border-dark mb-4">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Alertas en Tiempo Real</h4>
+        <button (click)="toggleFormAlerta()" class="btn btn-warning btn-sm">
+          {{ verFormAlerta ? '✕ Cerrar' : '＋ Reportar Alerta' }}
+        </button>
+      </div>
+
+      <!-- FORMULARIO DE ALERTA -->
+      <div class="card-body bg-light border-bottom" *ngIf="verFormAlerta">
+        <form (ngSubmit)="registrarAlerta()" class="row g-2">
+          <div class="col-md-6">
+            <input type="text" class="form-control" [(ngModel)]="alertaData.titulo" name="titulo" placeholder="Título" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" class="form-control" [(ngModel)]="alertaData.descripcion" name="descripcion" placeholder="Descripción" required>
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control" [(ngModel)]="alertaData.ubicacionTexto" name="ubicacion" placeholder="Ubicación (dirección)" required>
+          </div>
+          <div class="col-md-4">
+            <!-- 🌟 CORREGIDO: 1.6-6 en lugar de 1.6f -->
+            <input type="text" class="form-control" [value]="(latitudMapa | number:'1.6-6') || 'Selecciona un punto'" placeholder="Latitud" readonly style="background-color: #e9ecef;">
+          </div>
+          <div class="col-md-4">
+            <!-- 🌟 CORREGIDO: 1.6-6 en lugar de 1.6f -->
+            <input type="text" class="form-control" [value]="(longitudMapa | number:'1.6-6') || 'Selecciona un punto'" placeholder="Longitud" readonly style="background-color: #e9ecef;">
+          </div>
+          <div class="col-md-12">
+            <small class="text-muted">📍 Haz clic en el mapa para seleccionar la ubicación.</small>
+          </div>
+          <div class="col-md-12">
+            <button type="submit" class="btn btn-danger w-100">🚨 Reportar Alerta</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- TABLA DE ALERTAS -->
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0 text-center">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Título</th>
+              <th>Descripción</th>
+              <th>Ubicación</th>
+              <th>Hora</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of alertasFiltradas">
+              <td>#{{ a.id?.substring(0, 5) }}...</td>
+              <td><strong>{{ a.titulo }}</strong></td>
+              <td>{{ a.descripcion }}</td>
+              <td>{{ a.ubicacionTexto }}</td>
+              <td>{{ a.fechaHoraCreacion | date:'shortTime' }}</td>
+              <td><span [class]="getClassEstado(a.estado)">{{ a.estado }}</span></td>
+              <td>
+                <button class="btn btn-sm btn-info me-1" (click)="verDetalleAlerta(a)">📋 Ver</button>
+                <ng-container *ngIf="esAdmin()">
+                  <button *ngIf="a.estado === 'ALERTA'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-warning btn-sm">🚨 Atender</button>
+                  <button *ngIf="a.estado === 'ATENCION'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-success btn-sm">✅ Resolver</button>
+                </ng-container>
+                <span *ngIf="!esAdmin() && a.estado === 'ALERTA'" class="badge bg-danger">⚠️ Pendiente</span>
+                <span *ngIf="!esAdmin() && a.estado === 'ATENCION'" class="badge bg-warning text-dark">🔧 En atención</span>
+                <span *ngIf="a.estado === 'RESUELTO'" class="badge bg-success">✔️ Completado</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- DETALLES DE ALERTA -->
+    <div class="card shadow border-info mt-4" *ngIf="alertaSeleccionada">
+      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">📋 Detalles de Alerta #{{ alertaSeleccionada.id?.substring(0, 5) }}...</h4>
+        <button class="btn btn-light btn-sm" (click)="cerrarDetalles()">✕ Cerrar</button>
+      </div>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <p><strong>Título:</strong> {{ alertaSeleccionada.titulo }}</p>
+            <p><strong>Estado:</strong> <span [class]="getClassEstado(alertaSeleccionada.estado)">{{ alertaSeleccionada.estado }}</span></p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Ubicación:</strong> {{ alertaSeleccionada.ubicacionTexto }}</p>
+            <p><strong>Descripción:</strong> {{ alertaSeleccionada.descripcion }}</p>
+          </div>
+        </div>
+
+        <h5>💬 Comentarios y Evidencias</h5>
+        <div class="list-group mb-3" *ngIf="comentarios.length > 0">
+          <div class="list-group-item" *ngFor="let c of comentarios">
+            <div class="d-flex justify-content-between">
+              <strong>{{ c.autorNombre }} <span class="badge" [class.bg-primary]="c.autorRol === 'ADMIN'" [class.bg-secondary]="c.autorRol !== 'ADMIN'">{{ c.autorRol }}</span></strong>
+              <small>{{ c.fecha | date:'short' }}</small>
+            </div>
+            <p class="mb-2 mt-1">{{ c.texto }}</p>
+            <div class="row" *ngIf="c.imagenesUrls">
+              <div class="col-md-2 mb-2" *ngFor="let img of parseImagenesUrls(c.imagenesUrls)">
+                <img [src]="img" class="img-fluid rounded" style="height: 80px; width: 80px; cursor: pointer; object-fit: cover;" (click)="verImagenGrande(img)">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-secondary" *ngIf="comentarios.length === 0">No hay comentarios aún.</div>
+
+        <div class="mt-3" *ngIf="esAdmin() || (alertaSeleccionada.usuario?.id === usuarioActualId)">
+          <div class="card border-warning">
+            <div class="card-header bg-warning text-dark"><strong>✏️ Agregar observación</strong></div>
+            <div class="card-body">
+              <textarea class="form-control" rows="2" [(ngModel)]="nuevoComentarioTexto" placeholder="Ej: El equipo de bomberos llegó a las 3:00 PM..."></textarea>
+              <div class="mt-2">
+                <label class="form-label">📷 Evidencia (imágenes):</label>
+                <input type="file" class="form-control" #evidenciaInput multiple accept="image/*" (change)="seleccionarEvidencia($event)">
+                <div class="row mt-2" *ngIf="evidenciaPreviews.length">
+                  <div class="col-md-2 mb-2" *ngFor="let img of evidenciaPreviews">
+                    <img [src]="img" class="img-fluid rounded" style="height: 60px; width: 60px; object-fit: cover;">
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-primary mt-2" (click)="agregarComentario()" [disabled]="!nuevoComentarioTexto">📝 Agregar comentario</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA DE USUARIOS (Solo Admin) -->
+    <div class="card shadow border-info mt-4" *ngIf="esAdmin()">
+      <div class="card-header bg-info text-white">
+        <h4 class="mb-0">Usuarios Registrados</h4>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-striped mb-0 text-center">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Teléfono</th>
+              <th>Rol</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let user of usuariosLista">
+              <td>{{ user.nombre }}</td>
+              <td>{{ user.correo }}</td>
+              <td>{{ user.telefono }}</td>
+              <td><span class="badge bg-secondary">{{ user.rol }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación -->
+<ng-template #modalContenido let-modal>
+  <div class="modal-header">
+    <h4 class="modal-title">Confirmar Cambio de Estado</h4>
+    <button type="button" class="btn-close" (click)="modal.dismiss()"></button>
+  </div>
+  <div class="modal-body">
+    <p><strong>Alerta:</strong> {{ alertaSeleccionadaTitulo }}</p>
+    <p><strong>Acción:</strong> {{ nuevoEstado === 'ATENCION' ? 'Atender emergencia' : 'Resolver emergencia' }}</p>
+    <div class="mb-3">
+      <label class="form-label">Observaciones (opcional):</label>
+      <textarea class="form-control" [(ngModel)]="observacion" rows="3" placeholder="Ingrese detalles de la atención..."></textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="modal.dismiss()">Cancelar</button>
+    <button type="button" class="btn btn-primary" (click)="confirmarCambioEstado()">Confirmar</button>
+  </div>
+</ng-template>

@@ -1,0 +1,44 @@
+<div class="container mt-4 pb-5">
+  <div class="header-publico mb-4 text-center">
+    <h2 class="text-primary">🚨 Alertas en tu comunidad</h2>
+    <p class="text-muted">Consulta el estado de las emergencias en tu barrio. Los datos personales están protegidos.</p>
+  </div>
+
+  <!-- MAPA PÚBLICO -->
+  <div class="mb-5">
+    <h5 class="bg-primary text-white p-2 rounded-top m-0">📍 Mapa de Emergencias</h5>
+    <div style="height: 500px; width: 100%; border: 1px solid #ddd; border-radius: 0 0 8px 8px; position: relative;">
+      
+      <!-- 🌟 El *ngIf evita que Angular borre el mapa en el servidor (SSR) -->
+      <app-mapa *ngIf="isBrowser" style="display: block; height: 500px; width: 100%;"></app-mapa>
+      
+    </div>
+  </div>
+
+  <!-- LISTADO PÚBLICO -->
+  <h3 class="mb-3 border-bottom pb-2">Últimos reportes</h3>
+  
+  <div class="row" *ngIf="alertas.length > 0">
+    <div class="col-md-4 mb-4" *ngFor="let alerta of alertas">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="card-title m-0">{{ alerta.titulo | titlecase }}</h5>
+            <span [class]="getClassEstado(alerta.estado)">{{ alerta.estado }}</span>
+          </div>
+          <h6 class="card-subtitle mb-3 text-muted">
+            📍 {{ alerta.ubicacionTexto }}
+          </h6>
+          <p class="card-text text-secondary">{{ alerta.descripcion }}</p>
+        </div>
+        <div class="card-footer bg-white border-0 text-muted small text-end">
+          Reporte ciudadano
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="alertas.length === 0" class="alert alert-info text-center mt-4">
+    No hay alertas registradas en tu zona por el momento.
+  </div>
+</div>

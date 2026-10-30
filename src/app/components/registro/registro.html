@@ -1,0 +1,36 @@
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-4">
+      <div class="card shadow">
+        <div class="card-header bg-success text-white text-center">
+          <h4>Registrarse</h4>
+        </div>
+        <div class="card-body">
+          <form (ngSubmit)="registrar()">
+            <div class="mb-3">
+              <label class="form-label">Nombre Completo</label>
+              <input type="text" class="form-control" [(ngModel)]="usuario.nombre" name="nombre" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Correo Electrónico</label>
+              <input type="email" class="form-control" [(ngModel)]="usuario.correo" name="correo" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Teléfono</label>
+              <input type="text" class="form-control" [(ngModel)]="usuario.telefono" name="telefono" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Contraseña</label>
+              <input type="password" class="form-control" [(ngModel)]="usuario.password" name="password" required>
+            </div>
+            <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
+            <button type="submit" class="btn btn-success w-100">Registrarse</button>
+          </form>
+          
+          <!-- Quitamos el enlace duplicado de "Inicia sesión aquí" -->
+          
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
