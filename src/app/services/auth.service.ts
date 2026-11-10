@@ -4,12 +4,13 @@ import { Observable, BehaviorSubject } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { isPlatformBrowser } from '@angular/common';
 import { Usuario } from '../models/alerta.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/api/auth';
+  private apiUrl = `${environment.apiUrl}/auth`;
   
   private usuarioActual = new BehaviorSubject<Usuario | null>(null);
   usuarioActual$ = this.usuarioActual.asObservable();
@@ -41,19 +42,19 @@ export class AuthService {
           const payload = this.decodificarToken(token);
           if (payload) {
              // Determinamos el rol desde el token
-             const rolExtraido = payload.role ? payload.role.replace('ROLE_', '') : 'CIUDADANO';
-             
-             const usuarioOAuth: Usuario = {
+            const rolExtraido = payload.role ? payload.role.replace('ROLE_', '') : 'CIUDADANO';
+            
+            const usuarioOAuth: Usuario = {
                 id: payload.sub,
                 correo: payload.sub,
                 nombre: payload.sub.split('@')[0], // Nombre temporal
                 rol: rolExtraido,
                 telefono: '',
                 password: ''
-             };
-             this.usuarioActual.next(usuarioOAuth);
-             localStorage.setItem(this.USER_KEY, JSON.stringify(usuarioOAuth));
-             console.log('Usuario creado desde token de OAuth:', usuarioOAuth);
+            };
+            this.usuarioActual.next(usuarioOAuth);
+            localStorage.setItem(this.USER_KEY, JSON.stringify(usuarioOAuth));
+            console.log('Usuario creado desde token de OAuth:', usuarioOAuth);
           }
         }
       }

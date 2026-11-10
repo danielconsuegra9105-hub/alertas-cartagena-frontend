@@ -1,44 +1,137 @@
-<div class="container mt-4 pb-5">
-  <div class="header-publico mb-4 text-center">
-    <h2 class="text-primary">🚨 Alertas en tu comunidad</h2>
-    <p class="text-muted">Consulta el estado de las emergencias en tu barrio. Los datos personales están protegidos.</p>
-  </div>
-
-  <!-- MAPA PÚBLICO -->
-  <div class="mb-5">
-    <h5 class="bg-primary text-white p-2 rounded-top m-0">📍 Mapa de Emergencias</h5>
-    <div style="height: 500px; width: 100%; border: 1px solid #ddd; border-radius: 0 0 8px 8px; position: relative;">
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12 text-center mb-4">
+      <h1 class="display-5 fw-bold text-primary">🚨 Centro de Alertas Ciudadanas</h1>
+      <p class="text-muted">Monitoreo en tiempo real de emergencias en Cartagena</p>
       
-      <!-- 🌟 El *ngIf evita que Angular borre el mapa en el servidor (SSR) -->
-      <app-mapa *ngIf="isBrowser" style="display: block; height: 500px; width: 100%;"></app-mapa>
-      
+      <!-- 🌟 BOTÓN PARA VOLVER AL PANEL PERSONAL -->
+      <a routerLink="/" class="btn btn-outline-primary mt-2">
+        👤 Ir a mi Panel Personal
+      </a>
     </div>
   </div>
 
-  <!-- LISTADO PÚBLICO -->
-  <h3 class="mb-3 border-bottom pb-2">Últimos reportes</h3>
-  
-  <div class="row" *ngIf="alertas.length > 0">
-    <div class="col-md-4 mb-4" *ngFor="let alerta of alertas">
-      <div class="card h-100 shadow-sm border-0">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h5 class="card-title m-0">{{ alerta.titulo | titlecase }}</h5>
-            <span [class]="getClassEstado(alerta.estado)">{{ alerta.estado }}</span>
-          </div>
-          <h6 class="card-subtitle mb-3 text-muted">
-            📍 {{ alerta.ubicacionTexto }}
-          </h6>
-          <p class="card-text text-secondary">{{ alerta.descripcion }}</p>
+  <!-- MAPA -->
+  <div class="mb-5 shadow-sm rounded overflow-hidden">
+    <div class="bg-primary text-white p-3 fw-bold">📍 Mapa de Ubicaciones</div>
+    <div style="height: 400px; width: 100%; background: #eee;">
+      <app-mapa *ngIf="isBrowser" style="display: block; height: 100%; width: 100%;"></app-mapa>
+    </div>
+  </div>
+
+  <!-- ESTADO DE CARGA -->
+  <div *ngIf="loadingAlertas" class="text-center my-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2">Sincronizando datos con el servidor...</p>
+  </div>
+
+  <div class="row" *ngIf="!loadingAlertas && alertas.length > 0">
+    <!-- LISTA DE TARJETAS (Izquierda) -->
+    <div class="col-lg-7">
+      <h4 class="mb-3 border-bottom pb-2">Reportes Recientes</h4>
+      
+      <!-- BARRA DE FILTROS -->
+      <div class="row g-2 mb-4">
+        <div class="col-md-6">
+          <input type="text" 
+                 class="form-control form-control-sm" 
+                 placeholder="🔍 Buscar por título o ubicación..." 
+                 [(ngModel)]="filtroTexto" 
+                 (input)="filtrarAlertasPublicas()">
         </div>
-        <div class="card-footer bg-white border-0 text-muted small text-end">
-          Reporte ciudadano
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" [(ngModel)]="filtroEstado" (change)="filtrarAlertasPublicas()">
+            <option value="TODOS">Todos los estados</option>
+            <option value="ALERTA">Alertas</option>
+            <option value="ATENCION">En Atención</option>
+            <option value="RESUELTO">Resueltos</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select form-select-sm" [(ngModel)]="filtroTitulo" (change)="filtrarAlertasPublicas()">
+            <option value="TODOS">Todos los tipos</option>
+            <option value="Incendio">Incendios</option>
+            <option value="Inundacion">Inundaciones</option>
+            <option value="Accidente">Accidentes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- LISTA DE TARJETAS -->
+      <div class="row g-3">
+        <div class="col-md-6" *ngFor="let alerta of alertasFiltradas">
+          <div class="card alert-card h-100 shadow-sm" 
+               [ngClass]="'border-' + (alerta.estado === 'ALERTA' ? 'danger' : alerta.estado === 'ATENCION' ? 'warning' : 'success')"
+               (click)="verDetalles(alerta)">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="fw-bold text-truncate">{{ alerta.titulo | titlecase }}</h6>
+                <span [class]="getClassEstado(alerta.estado)" class="badge rounded-pill">{{ alerta.estado }}</span>
+              </div>
+              <p class="small text-muted"><i class="bi bi-geo-alt"></i> {{ alerta.ubicacionTexto }}</p>
+              <p class="card-text small text-secondary text-truncate">{{ alerta.descripcion }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- PANEL DE DETALLES (Derecha) -->
+    <div class="col-lg-5">
+      <div class="card detail-card shadow sticky-top" style="top: 20px;" *ngIf="selectedAlerta">
+        <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between">
+          <span>Detalles del Reporte</span>
+          <button class="btn-close btn-close-white" (click)="selectedAlerta = null"></button>
+        </div>
+        <div class="card-body">
+          <h4 class="fw-bold">{{ selectedAlerta.titulo }}</h4>
+          <hr>
+          <p><strong>📍 Ubicación:</strong> {{ selectedAlerta.ubicacionTexto }}</p>
+          <p><strong>📝 Descripción:</strong> {{ selectedAlerta.descripcion }}</p>
+          <p><strong>📅 Fecha:</strong> {{ selectedAlerta.fechaHoraCreacion | date:'medium' }}</p>
+          
+          <div class="mt-4">
+            <h6 class="fw-bold border-bottom pb-2">💬 Comentarios y Fotos</h6>
+            <div *ngIf="loadingComentarios" class="text-center my-3">
+              <div class="spinner-border spinner-border-sm text-primary"></div>
+            </div>
+            <div class="comments-list" *ngIf="!loadingComentarios">
+              <p *ngIf="comentarios.length === 0" class="text-muted small text-center">No hay comentarios aún.</p>
+              
+              <div class="comment-bubble mb-3" *ngFor="let c of comentarios">
+                <div class="d-flex justify-content-between mb-1">
+                  <strong class="small">{{ c.usuarioNombre || 'Ciudadano' }}</strong>
+                  <small class="text-muted" style="font-size: 0.7rem;">{{ c.fecha | date:'shortTime' }}</small>
+                </div>
+                <p class="small mb-2">{{ c.comentario }}</p>
+                
+                <div *ngIf="c.imagenesUrls" class="mt-2 text-center">
+                  <img [src]="getPrimeraImagen(c.imagenesUrls)" 
+                       class="img-fluid rounded shadow-sm mb-2" 
+                       style="max-height: 200px; object-fit: cover;">
+                  <br>
+                  <a href="javascript:void(0)" 
+                     (click)="abrirImagenGrande(getPrimeraImagen(c.imagenesUrls))" 
+                     class="text-primary small fw-bold text-decoration-none">
+                    🔍 Ver imagen en tamaño completo
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- MENSAJE CUANDO NO HAY ALERTA SELECCIONADA -->
+      <div *ngIf="!selectedAlerta" class="text-center p-5 border rounded bg-light text-muted">
+        <i class="bi bi-cursor-fill d-block mb-3" style="font-size: 2rem; opacity: 0.5;"></i>
+        <p>Selecciona una alerta para ver la información detallada y las evidencias.</p>
+      </div>
+    </div>
   </div>
-  
-  <div *ngIf="alertas.length === 0" class="alert alert-info text-center mt-4">
+
+  <!-- MENSAJE SI NO HAY ALERTAS -->
+  <div *ngIf="!loadingAlertas && alertas.length === 0" class="alert alert-info text-center mt-4">
     No hay alertas registradas en tu zona por el momento.
   </div>
 </div>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -15,6 +16,7 @@ export class LoginComponent {
   correo: string = '';
   password: string = '';
   error: string = '';
+  backendUrl: string = environment.backendUrl;
 
   constructor(private authService: AuthService, private router: Router) {}
 

@@ -116,11 +116,9 @@
             <input type="text" class="form-control" [(ngModel)]="alertaData.ubicacionTexto" name="ubicacion" placeholder="Ubicación (dirección)" required>
           </div>
           <div class="col-md-4">
-            <!-- 🌟 CORREGIDO: 1.6-6 en lugar de 1.6f -->
             <input type="text" class="form-control" [value]="(latitudMapa | number:'1.6-6') || 'Selecciona un punto'" placeholder="Latitud" readonly style="background-color: #e9ecef;">
           </div>
           <div class="col-md-4">
-            <!-- 🌟 CORREGIDO: 1.6-6 en lugar de 1.6f -->
             <input type="text" class="form-control" [value]="(longitudMapa | number:'1.6-6') || 'Selecciona un punto'" placeholder="Longitud" readonly style="background-color: #e9ecef;">
           </div>
           <div class="col-md-12">
@@ -132,12 +130,40 @@
         </form>
       </div>
 
+      <!-- 🌟 BARRA DE FILTROS -->
+      <div class="card-body bg-light border-bottom">
+        <div class="row g-2">
+          <div class="col-md-5">
+            <input type="text" 
+                   class="form-control form-control-sm" 
+                   placeholder="🔍 Buscar por título o ubicación..." 
+                   [(ngModel)]="filtroTexto" 
+                   (input)="filtrarAlertas()">
+          </div>
+          <div class="col-md-3">
+            <select class="form-select form-select-sm" [(ngModel)]="filtroEstado" (change)="filtrarAlertas()">
+              <option value="TODOS">Todos los estados</option>
+              <option value="ALERTA">Alertas</option>
+              <option value="ATENCION">En Atención</option>
+              <option value="RESUELTO">Resueltos</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <select class="form-select form-select-sm" [(ngModel)]="filtroTitulo" (change)="filtrarAlertas()">
+              <option value="TODOS">Todos los tipos</option>
+              <option value="Incendio">Incendios</option>
+              <option value="Inundacion">Inundaciones</option>
+              <option value="Accidente">Accidentes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- TABLA DE ALERTAS -->
       <div class="card-body p-0">
-        <table class="table table-hover mb-0 text-center">
+        <table class="table table-hover mb-0 text-center align-middle">
           <thead class="table-light">
             <tr>
-              <th>ID</th>
               <th>Título</th>
               <th>Descripción</th>
               <th>Ubicación</th>
@@ -148,18 +174,25 @@
           </thead>
           <tbody>
             <tr *ngFor="let a of alertasFiltradas">
-              <td>#{{ a.id?.substring(0, 5) }}...</td>
               <td><strong>{{ a.titulo }}</strong></td>
               <td>{{ a.descripcion }}</td>
               <td>{{ a.ubicacionTexto }}</td>
               <td>{{ a.fechaHoraCreacion | date:'shortTime' }}</td>
               <td><span [class]="getClassEstado(a.estado)">{{ a.estado }}</span></td>
               <td>
-                <button class="btn btn-sm btn-info me-1" (click)="verDetalleAlerta(a)">📋 Ver</button>
+                <button class="btn btn-sm btn-info me-1" (click)="verDetalleAlerta(a)">
+                  📋 Ver
+                </button>
+
                 <ng-container *ngIf="esAdmin()">
-                  <button *ngIf="a.estado === 'ALERTA'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-warning btn-sm">🚨 Atender</button>
-                  <button *ngIf="a.estado === 'ATENCION'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-success btn-sm">✅ Resolver</button>
+                  <button *ngIf="a.estado === 'ALERTA'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-warning btn-sm me-1">
+                    🚨 Atender
+                  </button>
+                  <button *ngIf="a.estado === 'ATENCION'" (click)="abrirModal(modalContenido, a.id!, a.titulo, a.estado)" class="btn btn-success btn-sm">
+                    ✅ Resolver
+                  </button>
                 </ng-container>
+
                 <span *ngIf="!esAdmin() && a.estado === 'ALERTA'" class="badge bg-danger">⚠️ Pendiente</span>
                 <span *ngIf="!esAdmin() && a.estado === 'ATENCION'" class="badge bg-warning text-dark">🔧 En atención</span>
                 <span *ngIf="a.estado === 'RESUELTO'" class="badge bg-success">✔️ Completado</span>
@@ -173,7 +206,7 @@
     <!-- DETALLES DE ALERTA -->
     <div class="card shadow border-info mt-4" *ngIf="alertaSeleccionada">
       <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-        <h4 class="mb-0">📋 Detalles de Alerta #{{ alertaSeleccionada.id?.substring(0, 5) }}...</h4>
+        <h4 class="mb-0">📋 Detalles del Reporte</h4>
         <button class="btn btn-light btn-sm" (click)="cerrarDetalles()">✕ Cerrar</button>
       </div>
       <div class="card-body">
@@ -189,13 +222,19 @@
         </div>
 
         <h5>💬 Comentarios y Evidencias</h5>
+        
+        <!-- Listado de comentarios -->
         <div class="list-group mb-3" *ngIf="comentarios.length > 0">
           <div class="list-group-item" *ngFor="let c of comentarios">
             <div class="d-flex justify-content-between">
-              <strong>{{ c.autorNombre }} <span class="badge" [class.bg-primary]="c.autorRol === 'ADMIN'" [class.bg-secondary]="c.autorRol !== 'ADMIN'">{{ c.autorRol }}</span></strong>
+              <strong>
+                {{ c.usuarioNombre || 'Ciudadano' }} 
+                <span class="badge bg-secondary">CIUDADANO</span>
+              </strong>
               <small>{{ c.fecha | date:'short' }}</small>
             </div>
-            <p class="mb-2 mt-1">{{ c.texto }}</p>
+            <p class="mb-2 mt-1">{{ c.comentario }}</p>
+            <!-- Imágenes -->
             <div class="row" *ngIf="c.imagenesUrls">
               <div class="col-md-2 mb-2" *ngFor="let img of parseImagenesUrls(c.imagenesUrls)">
                 <img [src]="img" class="img-fluid rounded" style="height: 80px; width: 80px; cursor: pointer; object-fit: cover;" (click)="verImagenGrande(img)">
@@ -203,26 +242,40 @@
             </div>
           </div>
         </div>
-        <div class="alert alert-secondary" *ngIf="comentarios.length === 0">No hay comentarios aún.</div>
+        <div class="alert alert-secondary" *ngIf="comentarios.length === 0">
+          No hay comentarios aún.
+        </div>
 
-        <div class="mt-3" *ngIf="esAdmin() || (alertaSeleccionada.usuario?.id === usuarioActualId)">
-          <div class="card border-warning">
-            <div class="card-header bg-warning text-dark"><strong>✏️ Agregar observación</strong></div>
+        <!-- Formulario para agregar comentario -->
+        <div class="mt-4">
+          <div class="card border-warning shadow-sm">
+            <div class="card-header bg-warning text-dark">
+              <strong>✏️ Agregar observación o comentario</strong>
+            </div>
             <div class="card-body">
-              <textarea class="form-control" rows="2" [(ngModel)]="nuevoComentarioTexto" placeholder="Ej: El equipo de bomberos llegó a las 3:00 PM..."></textarea>
-              <div class="mt-2">
-                <label class="form-label">📷 Evidencia (imágenes):</label>
-                <input type="file" class="form-control" #evidenciaInput multiple accept="image/*" (change)="seleccionarEvidencia($event)">
+              <textarea class="form-control mb-2" rows="2" [(ngModel)]="nuevoComentarioTexto" 
+                        placeholder="Ej: El equipo de bomberos llegó a las 3:00 PM..."></textarea>
+              
+              <div class="mb-3">
+                <label class="form-label text-muted small">📷 Adjuntar Evidencia (imágenes):</label>
+                <input type="file" class="form-control form-control-sm" #evidenciaInput multiple accept="image/*" 
+                       (change)="seleccionarEvidencia($event)">
+                
                 <div class="row mt-2" *ngIf="evidenciaPreviews.length">
                   <div class="col-md-2 mb-2" *ngFor="let img of evidenciaPreviews">
-                    <img [src]="img" class="img-fluid rounded" style="height: 60px; width: 60px; object-fit: cover;">
+                    <img [src]="img" class="img-fluid rounded border" style="height: 60px; width: 60px; object-fit: cover;">
                   </div>
                 </div>
               </div>
-              <button class="btn btn-primary mt-2" (click)="agregarComentario()" [disabled]="!nuevoComentarioTexto">📝 Agregar comentario</button>
+              
+              <button class="btn btn-primary w-100" (click)="agregarComentario()" 
+                      [disabled]="!nuevoComentarioTexto">
+                📝 Enviar Comentario
+              </button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
 

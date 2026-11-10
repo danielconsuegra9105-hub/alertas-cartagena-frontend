@@ -10,6 +10,7 @@ import { AuthService } from '../../services/auth.service';
 import { OpinionService } from '../../services/opinion.service';
 import { Alerta, Usuario, OpinionPublica } from '../../models/alerta.model';
 import { MapaComponent } from '../mapa/mapa';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-home',
@@ -26,6 +27,11 @@ export class HomeComponent implements OnInit {
   alertas: Alerta[] = [];
   alertasFiltradas: Alerta[] = [];
   usuariosLista: Usuario[] = [];
+  
+  // 🌟 Variables para los filtros
+  filtroTexto: string = '';
+  filtroEstado: string = 'TODOS';
+  filtroTitulo: string = 'TODOS';
   
   alertaSeleccionadaId: any = '';
   alertaSeleccionadaTitulo: string = '';
@@ -63,7 +69,7 @@ export class HomeComponent implements OnInit {
   evidenciaSeleccionada: File[] = [];
   evidenciaPreviews: string[] = [];
 
-  private apiUrl = 'http://localhost:8080/api';
+  private apiUrl = environment.apiUrl;
 
   constructor(
     private http: HttpClient,
@@ -83,11 +89,8 @@ export class HomeComponent implements OnInit {
       if (usuario) {
         this.usuarioActualId = usuario.id;
         
-        // 🌟 SOLUCIÓN 1: Retrasar un poco las peticiones para evitar el error NG0100
         setTimeout(() => {
           this.cargarAlertas();
-          
-          // 🌟 SOLUCIÓN 2: Solo pedir usuarios si es Admin (para evitar el 403)
           if (this.esAdmin()) {
             this.cargarUsuarios();
           }
@@ -122,35 +125,75 @@ export class HomeComponent implements OnInit {
   }
 
   cargarAlertas(): void {
-    this.alertaService.obtenerTodas().subscribe((data: Alerta[]) => {
-      this.alertas = data;
-      
-      if (this.esAdmin()) {
-        this.alertasFiltradas = data;
-      } else {
-        this.alertasFiltradas = data.filter(a => String((a as any).usuarioId) === String(this.usuarioActualId));
+    this.alertaService.obtenerTodas().subscribe({
+      next: (data: Alerta[]) => {
+        setTimeout(() => {
+          this.alertas = data;
+          
+          // 🌟 Llamamos al filtro para que asigne las alertas correctas
+          this.filtrarAlertas();
+          
+          if (this.isBrowser) {
+            const alertasParaMapa = data.map(alerta => ({
+              id: alerta.id,
+              titulo: alerta.titulo,
+              descripcion: alerta.descripcion,
+              ubicacionTexto: alerta.ubicacionTexto,
+              latitud: alerta.latitud,
+              longitud: alerta.longitud,
+              estado: alerta.estado
+            }));
+            localStorage.setItem('alertasMapa', JSON.stringify(alertasParaMapa));
+          }
+          
+          this.cdr.detectChanges();
+        }, 0);
       }
-      
-      if (this.isBrowser) {
-        const alertasParaMapa = data.map(alerta => ({
-          id: alerta.id,
-          titulo: alerta.titulo,
-          descripcion: alerta.descripcion,
-          ubicacionTexto: alerta.ubicacionTexto,
-          latitud: alerta.latitud,
-          longitud: alerta.longitud,
-          estado: alerta.estado
-        }));
-        localStorage.setItem('alertasMapa', JSON.stringify(alertasParaMapa));
-      }
-      
-      this.cdr.detectChanges();
     });
   }
 
+  // 🌟 NUEVO MÉTODO: Filtra las alertas según los criterios
+  filtrarAlertas(): void {
+    let resultado = this.alertas;
+
+    // Si no es admin, solo mostramos las suyas
+    if (!this.esAdmin()) {
+      resultado = resultado.filter(a => String((a as any).usuarioId) === String(this.usuarioActualId));
+    }
+
+    // 1. Filtrar por texto (Título o Ubicación)
+    if (this.filtroTexto.trim() !== '') {
+      const texto = this.filtroTexto.toLowerCase();
+      resultado = resultado.filter(a => 
+        a.titulo.toLowerCase().includes(texto) || 
+        a.ubicacionTexto.toLowerCase().includes(texto)
+      );
+    }
+
+    // 2. Filtrar por estado
+    if (this.filtroEstado !== 'TODOS') {
+      resultado = resultado.filter(a => a.estado === this.filtroEstado);
+    }
+
+    // 3. Filtrar por tipo (Incendio, Inundación, etc.)
+    if (this.filtroTitulo !== 'TODOS') {
+      resultado = resultado.filter(a => 
+        a.titulo.toLowerCase().includes(this.filtroTitulo.toLowerCase())
+      );
+    }
+
+    this.alertasFiltradas = resultado;
+    this.cdr.detectChanges();
+  }
+
   cargarUsuarios(): void {
-    this.usuarioService.obtenerTodos().subscribe((data: Usuario[]) => {
-      this.usuariosLista = data;
+    this.usuarioService.obtenerTodos().subscribe({
+      next: (data: Usuario[]) => {
+        setTimeout(() => {
+          this.usuariosLista = data;
+          this.cdr.detectChanges();
+        }, 0);
+      }
     });
   }
 
@@ -328,12 +371,15 @@ export class HomeComponent implements OnInit {
         console.log(`✅ Alerta ${id} cambiada a ${nuevoEstado}`);
         
         if (observacion && observacion.trim() !== '') {
+          const usuarioActual = this.authService.obtenerUsuarioActual();
+          
           const opinion: OpinionPublica = {
             comentario: `[${nuevoEstado}] ${observacion}`,
             verificacion: true,
             fecha: new Date().toISOString(),
-            alerta: { id: id } as Alerta,
-            usuario: this.authService.obtenerUsuarioActual()!
+            alertaId: String(id),
+            usuarioId: String(usuarioActual?.id),
+            usuarioNombre: usuarioActual?.nombre || 'Operador'
           };
           
           this.opinionService.crear(opinion).subscribe({
@@ -374,10 +420,12 @@ export class HomeComponent implements OnInit {
   }
 
   cargarComentarios(alertaId: any) {
-    this.http.get<any[]>(`${this.apiUrl}/comentarios/alerta/${alertaId}`)
+    const timestamp = new Date().getTime();
+    this.http.get<any[]>(`${this.apiUrl}/opiniones/alerta/${alertaId}?t=${timestamp}`)
       .subscribe({
         next: (data) => {
           this.comentarios = data;
+          this.cdr.detectChanges(); 
         },
         error: (err) => {
           console.error('Error cargando comentarios:', err);
@@ -413,28 +461,38 @@ export class HomeComponent implements OnInit {
     });
     
     Promise.all(promesas).then(imagenes => {
-      const nuevoComentario = {
-        texto: this.nuevoComentarioTexto,
-        autorNombre: this.obtenerNombreUsuario(),
-        autorRol: this.esAdmin() ? 'ADMIN' : 'CIUDADANO',
-        alertaId: this.alertaSeleccionada!.id!,
+      const usuarioActual = this.authService.obtenerUsuarioActual();
+      
+      if (!usuarioActual) {
+        alert('❌ Error: No hay usuario logueado');
+        return;
+      }
+      
+      const nuevaOpinion: OpinionPublica = {
+        comentario: this.nuevoComentarioTexto,
+        verificacion: true,
+        fecha: new Date().toISOString(),
+        alertaId: String(this.alertaSeleccionada!.id!),
+        usuarioId: String(usuarioActual.id),
+        usuarioNombre: usuarioActual.nombre || 'Ciudadano',
         imagenesUrls: JSON.stringify(imagenes)
       };
       
-      this.http.post(`${this.apiUrl}/comentarios`, nuevoComentario)
-        .subscribe({
-          next: () => {
-            this.nuevoComentarioTexto = '';
-            this.evidenciaSeleccionada = [];
-            this.evidenciaPreviews = [];
-            this.cargarComentarios(this.alertaSeleccionada!.id!);
-            alert('✅ Comentario guardado');
-          },
-          error: (err) => {
-            console.error('Error al guardar comentario:', err);
-            alert('❌ Error al guardar comentario');
-          }
-        });
+      this.opinionService.crear(nuevaOpinion).subscribe({
+        next: () => {
+          this.nuevoComentarioTexto = '';
+          this.evidenciaSeleccionada = [];
+          this.evidenciaPreviews = [];
+          
+          this.cargarComentarios(this.alertaSeleccionada!.id!);
+          
+          alert('✅ Comentario guardado');
+        },
+        error: (err) => {
+          console.error('Error al guardar comentario:', err);
+          alert('❌ Error al guardar comentario');
+        }
+      });
     });
   }
 

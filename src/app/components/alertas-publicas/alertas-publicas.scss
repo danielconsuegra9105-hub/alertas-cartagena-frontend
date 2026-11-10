@@ -1,0 +1,50 @@
+.container-fluid {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.alert-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-width: 2px !important;
+  border-radius: 12px !important;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
+    filter: brightness(95%);
+  }
+}
+
+.detail-card {
+  border-radius: 15px;
+  border: none;
+}
+
+.comments-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 15px;
+  background: #fdfdfd;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+.comment-bubble {
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  border-left: 4px solid #0d6efd;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  margin-bottom: 15px;
+}
+
+.img-fluid {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 5px;
+  transition: transform 0.2s;
+  &:hover {
+    transform: scale(1.05);
+  }
+}
