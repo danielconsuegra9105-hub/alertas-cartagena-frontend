@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms'; // 🌟 Para los filtros
 import { RouterModule } from '@angular/router'; // 🌟 Para el botón de volver
 import { HttpClient } from '@angular/common/http';
 import { MapaComponent } from '../mapa/mapa';
+import { AuthService } from '../../services/auth.service';
+import { OpinionService } from '../../services/opinion.service';
+import { OpinionPublica } from '../../models/alerta.model';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -29,10 +32,17 @@ export class AlertasPublicasComponent implements OnInit {
 
   private apiUrlPublic = `${environment.apiUrl}/public`;
 
+  // Comentarios (solo usuarios con sesión)
+  nuevoComentarioTexto: string = '';
+  evidenciaSeleccionada: File[] = [];
+  enviandoComentario: boolean = false;
+
   constructor(
     private http: HttpClient, 
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
+    private authService: AuthService,
+    private opinionService: OpinionService,
     @Inject(PLATFORM_ID) private platformId: any
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -115,6 +125,66 @@ export class AlertasPublicasComponent implements OnInit {
           this.cdr.detectChanges();
         });
       }
+    });
+  }
+
+  estaLogueado(): boolean {
+    return this.authService.estaAutenticado();
+  }
+
+  seleccionarEvidencia(event: any) {
+    this.evidenciaSeleccionada = Array.from(event.target.files);
+  }
+
+  enviarComentario() {
+    const usuario = this.authService.obtenerUsuarioActual();
+    if (!usuario || !this.selectedAlerta) {
+      alert('❌ Inicia sesión para comentar');
+      return;
+    }
+    if (!this.nuevoComentarioTexto.trim()) {
+      alert('❌ Escribe un comentario');
+      return;
+    }
+
+    this.enviandoComentario = true;
+
+    const promesas = this.evidenciaSeleccionada.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e: any) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(promesas).then(imagenes => {
+      const opinion: OpinionPublica = {
+        comentario: this.nuevoComentarioTexto,
+        verificacion: true,
+        alertaId: String(this.selectedAlerta.id),
+        usuarioId: String(usuario.id),
+        usuarioNombre: usuario.nombre || 'Ciudadano',
+        imagenesUrls: JSON.stringify(imagenes)
+      };
+
+      this.opinionService.crear(opinion).subscribe({
+        next: () => {
+          this.ngZone.run(() => {
+            this.nuevoComentarioTexto = '';
+            this.evidenciaSeleccionada = [];
+            this.enviandoComentario = false;
+            this.verDetalles(this.selectedAlerta);
+          });
+        },
+        error: (err) => {
+          console.error('Error al guardar comentario', err);
+          this.ngZone.run(() => {
+            this.enviandoComentario = false;
+            this.cdr.detectChanges();
+          });
+          alert('❌ Error al guardar el comentario');
+        }
+      });
     });
   }
 
